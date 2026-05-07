@@ -1,0 +1,58 @@
+name: Monitor upstream PR #591
+
+on:
+  schedule:
+    - cron: "17 */6 * * *" # every 6 hours
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore state cache
+        id: cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/pr591
+          key: pr591-state-${{ github.run_id }}
+          restore-keys: |
+            pr591-state-
+
+      - name: Generate email payload
+        id: gen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_REPO: santifer/career-ops
+          PR_NUMBER: "591"
+          STATE_PATH: .cache/pr591/state.json
+          HTML_PATH: .cache/pr591/email.html
+          ALWAYS_SEND: "false"
+        run: node scripts/monitor-pr-591.mjs
+
+      - name: Save state cache
+        if: steps.gen.outputs.send_email == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/pr591
+          key: pr591-state-${{ github.run_id }}
+
+      - name: Send email (Gmail SMTP)
+        if: steps.gen.outputs.send_email == 'true'
+        uses: dawidd6/action-send-mail@v4
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_SMTP_USERNAME }}
+          password: ${{ secrets.GMAIL_SMTP_APP_PASSWORD }}
+          subject: ${{ steps.gen.outputs.subject }}
+          to: ${{ secrets.PR_MONITOR_EMAIL_TO }}
+          from: career-ops PR monitor <${{ secrets.GMAIL_SMTP_USERNAME }}>
+          html_body: file://${{ steps.gen.outputs.html_path }}
+
