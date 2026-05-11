@@ -20,6 +20,9 @@ jds/*
 writing-samples/*
 !writing-samples/README.md
 
+# Resume bank (user's personal resume variants and generated extracts)
+resume_bank/
+
 # User config and customization (never auto-updated)
 config/profile.yml
 portals.yml
